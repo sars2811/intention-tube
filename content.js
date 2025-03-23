@@ -1,8 +1,23 @@
 // Content script for Intention Tube
-let settings = { blockingDuration: 5, isEnabled: true };
-let videoBlocked = false;
-let timerInterval = null;
-let originalVideoState = null;
+// Use a namespace to avoid variable redeclaration issues
+window.intentionTube = window.intentionTube || {
+  videoBlocked: false,
+  timerInterval: null,
+  originalVideoState: null,
+  settings: { blockingDuration: 5, isEnabled: true }
+};
+
+// Get settings from storage on initialization
+function getSettingsFromStorage() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get('settings', (result) => {
+      if (result.settings) {
+        window.intentionTube.settings = result.settings;
+      }
+      resolve(window.intentionTube.settings);
+    });
+  });
+}
 
 // Create and inject the blocker overlay
 function createBlockerOverlay() {
@@ -73,7 +88,7 @@ function createBlockerOverlay() {
   // Create timer
   const timer = document.createElement('div');
   timer.id = 'intention-tube-timer';
-  timer.textContent = `Wait ${settings.blockingDuration} seconds`;
+  timer.textContent = `Wait ${window.intentionTube.settings.blockingDuration} seconds`;
   timer.style.cssText = `
     font-size: 18px;
     margin: 15px 0;
@@ -150,13 +165,13 @@ function createBlockerOverlay() {
   document.body.appendChild(overlay);
 
   // Start the timer
-  let timeLeft = settings.blockingDuration;
-  timerInterval = setInterval(() => {
+  let timeLeft = window.intentionTube.settings.blockingDuration;
+  window.intentionTube.timerInterval = setInterval(() => {
     timeLeft--;
     timer.textContent = timeLeft > 0 ? `Wait ${timeLeft} seconds` : 'Enter your reason to proceed';
     
     if (timeLeft <= 0) {
-      clearInterval(timerInterval);
+      clearInterval(window.intentionTube.timerInterval);
       checkReasonInput();
     }
   }, 1000);
@@ -263,8 +278,8 @@ function removeOverlay() {
     document.body.removeChild(overlay);
   }
   
-  if (timerInterval) {
-    clearInterval(timerInterval);
+  if (window.intentionTube.timerInterval) {
+    clearInterval(window.intentionTube.timerInterval);
   }
   
   // Remove the body style
@@ -273,7 +288,7 @@ function removeOverlay() {
     document.head.removeChild(bodyStyle);
   }
   
-  videoBlocked = false;
+  window.intentionTube.videoBlocked = false;
 }
 
 // Pause the YouTube video
@@ -283,7 +298,7 @@ function pauseVideo() {
   // Method 1: Direct video element manipulation
   const videoElements = document.querySelectorAll('video');
   videoElements.forEach(video => {
-    originalVideoState = {
+    window.intentionTube.originalVideoState = {
       paused: video.paused,
       currentTime: video.currentTime,
       muted: video.muted
@@ -328,7 +343,7 @@ function pauseVideo() {
   }
   
   window.pauseCheckInterval = setInterval(() => {
-    if (videoBlocked) {
+    if (window.intentionTube.videoBlocked) {
       videoElements.forEach(video => {
         if (!video.paused) {
           video.pause();
@@ -351,12 +366,12 @@ function resumeVideo() {
   const videoElements = document.querySelectorAll('video');
   videoElements.forEach(video => {
     // Restore original muted state
-    if (originalVideoState && originalVideoState.hasOwnProperty('muted')) {
-      video.muted = originalVideoState.muted;
+    if (window.intentionTube.originalVideoState && window.intentionTube.originalVideoState.hasOwnProperty('muted')) {
+      video.muted = window.intentionTube.originalVideoState.muted;
     }
     
     // Play if it was playing before
-    if (originalVideoState && !originalVideoState.paused) {
+    if (window.intentionTube.originalVideoState && !window.intentionTube.originalVideoState.paused) {
       video.play().catch(e => console.error('Error playing video:', e));
     }
   });
@@ -367,7 +382,7 @@ function resumeVideo() {
       const playerContainer = document.querySelector('#movie_player');
       if (playerContainer) {
         const player = window.yt.player.getPlayerByElement(playerContainer);
-        if (player && typeof player.playVideo === 'function' && !originalVideoState?.paused) {
+        if (player && typeof player.playVideo === 'function' && !window.intentionTube.originalVideoState?.paused) {
           player.playVideo();
         }
       }
@@ -421,7 +436,7 @@ function checkForExistingReason(callback) {
 
 // Initialize the blocker
 function initBlocker() {
-  if (!settings.isEnabled || videoBlocked) {
+  if (!window.intentionTube.settings.isEnabled || window.intentionTube.videoBlocked) {
     return;
   }
   
@@ -432,7 +447,7 @@ function initBlocker() {
       return;
     }
     
-    videoBlocked = true;
+    window.intentionTube.videoBlocked = true;
     pauseVideo();
     createBlockerOverlay();
   });
@@ -441,7 +456,7 @@ function initBlocker() {
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'initBlocker') {
-    Object.assign(settings, message.settings);
+    Object.assign(window.intentionTube.settings, message.settings);
     initBlocker();
     sendResponse({ success: true });
   }
@@ -449,9 +464,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Initialize when the content script is first loaded
-chrome.runtime.sendMessage({ action: 'getSettings' }, (response) => {
-  if (response) {
-    Object.assign(settings, response);
-    initBlocker();
-  }
+getSettingsFromStorage().then(settings => {
+  Object.assign(window.intentionTube.settings, settings);
+  initBlocker();
 });

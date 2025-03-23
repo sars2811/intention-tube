@@ -20,11 +20,19 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           files: ['content.js']
         });
         
-        // Send the settings to the content script
-        chrome.tabs.sendMessage(tabId, { 
-          action: 'initBlocker',
-          settings: settings
-        });
+        // Wait a moment to ensure content script is fully loaded
+        setTimeout(() => {
+          // Send the settings to the content script
+          chrome.tabs.sendMessage(tabId, { 
+            action: 'initBlocker',
+            settings: settings
+          }, (response) => {
+            // Handle potential error if content script is not ready
+            if (chrome.runtime.lastError) {
+              console.log('Could not send message to content script:', chrome.runtime.lastError);
+            }
+          });
+        }, 200);
       }
     } catch (error) {
       console.error('Error in background script:', error);
