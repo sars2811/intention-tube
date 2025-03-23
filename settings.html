@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intention Tube Settings</title>
+  <style>
+    :root {
+      --primary-color: #4285f4;
+      --secondary-color: #34a853;
+      --danger-color: #ea4335;
+      --background-color: #ffffff;
+      --text-color: #202124;
+      --border-color: #dadce0;
+      --card-background: #f8f9fa;
+    }
+
+    body.dark-mode {
+      --primary-color: #8ab4f8;
+      --secondary-color: #81c995;
+      --danger-color: #f28b82;
+      --background-color: #202124;
+      --text-color: #e8eaed;
+      --border-color: #5f6368;
+      --card-background: #303134;
+    }
+
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      transition: all 0.3s ease;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0;
+      color: var(--primary-color);
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+      margin-left: 12px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary-color);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+    .card {
+      background-color: var(--card-background);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      font-size: 18px;
+      margin-top: 0;
+      margin-bottom: 16px;
+      color: var(--primary-color);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    input[type="number"], input[type="range"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background-color: var(--background-color);
+      color: var(--text-color);
+    }
+
+    .range-value {
+      display: inline-block;
+      margin-left: 8px;
+      font-weight: bold;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      background-color: var(--primary-color);
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-color);
+    }
+
+    .btn-secondary {
+      background-color: var(--secondary-color);
+    }
+
+    .history-list {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+    }
+
+    .history-item {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-reason {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .history-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #5f6368;
+    }
+
+    .history-status {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 12px;
+      font-size: 11px;
+    }
+
+    .history-status.watched {
+      background-color: rgba(52, 168, 83, 0.2);
+      color: var(--secondary-color);
+    }
+
+    .history-status.cancelled {
+      background-color: rgba(234, 67, 53, 0.2);
+      color: var(--danger-color);
+    }
+
+    .empty-history {
+      padding: 20px;
+      text-align: center;
+      color: #5f6368;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Intention Tube Settings</h1>
+      <div class="theme-toggle">
+        <span>Dark Mode</span>
+        <label class="switch">
+          <input type="checkbox" id="dark-mode-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </header>
+    
+    <div class="card">
+      <h2>General Settings</h2>
+      <div class="form-group">
+        <label for="extension-toggle">Extension Status</label>
+        <div>
+          <label class="switch">
+            <input type="checkbox" id="extension-toggle" checked>
+            <span class="slider"></span>
+          </label>
+          <span id="extension-status">Enabled</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="blocking-duration">Blocking Duration (seconds)</label>
+        <input type="range" id="blocking-duration" min="1" max="15" value="5">
+        <span id="duration-value" class="range-value">5</span>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Viewing History</h2>
+      <div id="history-list" class="history-list">
+        <div class="empty-history">No history available yet.</div>
+      </div>
+      
+      <div class="actions">
+        <button id="clear-history" class="btn btn-danger">Clear History</button>
+        <button id="export-history" class="btn btn-secondary">Export History</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>About</h2>
+      <p>Intention Tube helps you be more intentional about your YouTube watching habits by making you pause and reflect before watching videos.</p>
+      <p>Version: 1.0</p>
+    </div>
+  </div>
+  
+  <script src="database.js"></script>
+  <script src="settings.js"></script>
+  <script src="settings-page.js"></script>
+</body>
+</html>

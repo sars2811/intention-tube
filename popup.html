@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intention Tube</title>
+  <style>
+    :root {
+      --primary-color: #4285f4;
+      --secondary-color: #34a853;
+      --danger-color: #ea4335;
+      --background-color: #ffffff;
+      --text-color: #202124;
+      --border-color: #dadce0;
+    }
+
+    body.dark-mode {
+      --primary-color: #8ab4f8;
+      --secondary-color: #81c995;
+      --danger-color: #f28b82;
+      --background-color: #202124;
+      --text-color: #e8eaed;
+      --border-color: #5f6368;
+    }
+
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      width: 320px;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      transition: all 0.3s ease;
+    }
+
+    .container {
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0 0 16px 0;
+      text-align: center;
+      color: var(--primary-color);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      background-color: rgba(66, 133, 244, 0.1);
+    }
+
+    .status-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 12px;
+      border-radius: 50%;
+    }
+
+    .status-icon.enabled {
+      background-color: var(--secondary-color);
+    }
+
+    .status-icon.disabled {
+      background-color: var(--danger-color);
+    }
+
+    .status-text {
+      flex-grow: 1;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background-color: var(--primary-color);
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      text-align: center;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn-block {
+      display: block;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .btn-secondary {
+      background-color: var(--secondary-color);
+    }
+
+    .stats {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      background-color: rgba(66, 133, 244, 0.1);
+    }
+
+    .stats h2 {
+      font-size: 16px;
+      margin: 0 0 12px 0;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .stat-label {
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-weight: 700;
+    }
+
+    footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #5f6368;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Intention Tube</h1>
+    
+    <div class="status">
+      <div id="status-icon" class="status-icon enabled"></div>
+      <div id="status-text" class="status-text">Extension is active</div>
+    </div>
+    
+    <button id="toggle-extension" class="btn btn-block">Disable Extension</button>
+    <button id="open-settings" class="btn btn-block btn-secondary">Open Settings</button>
+    
+    <div class="stats">
+      <h2>Your Stats</h2>
+      <div class="stat-item">
+        <span class="stat-label">Videos watched:</span>
+        <span id="watched-count" class="stat-value">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Videos cancelled:</span>
+        <span id="cancelled-count" class="stat-value">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Intentionality rate:</span>
+        <span id="intentionality-rate" class="stat-value">0%</span>
+      </div>
+    </div>
+    
+    <footer>
+      Be more intentional about your YouTube habits
+    </footer>
+  </div>
+  
+  <script src="database.js"></script>
+  <script src="settings.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

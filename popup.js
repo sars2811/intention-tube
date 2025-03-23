@@ -1,0 +1,63 @@
+// Popup script for Intention Tube
+document.addEventListener('DOMContentLoaded', async () => {
+  // Get DOM elements
+  const statusIcon = document.getElementById('status-icon');
+  const statusText = document.getElementById('status-text');
+  const toggleButton = document.getElementById('toggle-extension');
+  const settingsButton = document.getElementById('open-settings');
+  const watchedCount = document.getElementById('watched-count');
+  const cancelledCount = document.getElementById('cancelled-count');
+  const intentionalityRate = document.getElementById('intentionality-rate');
+
+  // Load settings
+  const settings = await IntentionTubeSettings.loadSettings();
+  
+  // Update UI based on settings
+  updateStatusUI(settings.isEnabled);
+  
+  // Load stats
+  try {
+    const stats = await IntentionTubeDB.getWatchStats();
+    updateStatsUI(stats);
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  }
+  
+  // Toggle extension state
+  toggleButton.addEventListener('click', async () => {
+    settings.isEnabled = !settings.isEnabled;
+    await IntentionTubeSettings.saveSettings(settings);
+    updateStatusUI(settings.isEnabled);
+  });
+  
+  // Open settings page
+  settingsButton.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
+  
+  // Update status UI based on enabled state
+  function updateStatusUI(isEnabled) {
+    if (isEnabled) {
+      statusIcon.className = 'status-icon enabled';
+      statusText.textContent = 'Extension is active';
+      toggleButton.textContent = 'Disable Extension';
+    } else {
+      statusIcon.className = 'status-icon disabled';
+      statusText.textContent = 'Extension is disabled';
+      toggleButton.textContent = 'Enable Extension';
+    }
+  }
+  
+  // Update stats UI
+  function updateStatsUI(stats) {
+    watchedCount.textContent = stats.watched;
+    cancelledCount.textContent = stats.cancelled;
+    
+    // Calculate intentionality rate
+    const rate = stats.total > 0 
+      ? Math.round((stats.watched / stats.total) * 100) 
+      : 0;
+    
+    intentionalityRate.textContent = `${rate}%`;
+  }
+});
