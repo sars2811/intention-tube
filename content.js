@@ -222,9 +222,28 @@ function createBlockerOverlay() {
   });
 }
 
+// Helper function to extract video ID from YouTube URL
+function getVideoIdFromUrl(url) {
+  try {
+    const urlObject = new URL(url);
+    if (urlObject.hostname.includes('youtube.com') && urlObject.pathname === '/watch') {
+      return urlObject.searchParams.get('v');
+    }
+  } catch (e) {
+    console.error("Error parsing URL:", url, e);
+  }
+  return null;
+}
+
 // Save reason to IndexedDB
 function saveToIndexedDB(reason, watched) {
-  const videoUrl = window.location.href;
+  const currentUrl = window.location.href;
+  const videoId = getVideoIdFromUrl(currentUrl);
+
+  if (!videoId) {
+    console.error("Could not extract video ID from URL:", currentUrl);
+    return; // Don't save if we can't get the ID
+  }
   
   // Create a request to open the database
   const request = indexedDB.open('IntentionTubeDB', 1);
@@ -250,14 +269,15 @@ function saveToIndexedDB(reason, watched) {
     const transaction = db.transaction(['reasons'], 'readwrite');
     const store = transaction.objectStore('reasons');
     
-    const record = {
-      reason,
-      videoUrl,
-      timestamp: new Date().toISOString(),
-      watched
+    const data = {
+      reason: reason,
+      timestamp: new Date(),
+      videoUrl: videoId, // Use videoId here
+      watched: watched,
+      title: document.title // Optionally store title
     };
     
-    store.add(record);
+    store.add(data);
   };
 }
 
@@ -384,7 +404,14 @@ function resumeVideo() {
 
 // Function to check if this video already has a reason
 function checkForExistingReason(callback) {
-  const videoUrl = window.location.href;
+  const currentUrl = window.location.href;
+  const videoId = getVideoIdFromUrl(currentUrl);
+
+  if (!videoId) {
+    callback(false); // Assume no reason if ID can't be extracted
+    return;
+  }
+
   const request = indexedDB.open('IntentionTubeDB', 1);
   
   request.onerror = (event) => {
@@ -405,10 +432,10 @@ function checkForExistingReason(callback) {
     const store = transaction.objectStore('reasons');
     const index = store.index('videoUrl');
     
-    // Get all records for this video URL
-    const request = index.getAll(videoUrl);
+    // Get all records for this video ID
+    const getRequest = index.getAll(videoId); // Use videoId here
     
-    request.onsuccess = (event) => {
+    getRequest.onsuccess = (event) => {
       const records = event.target.result;
       
       // Check if there's at least one record where watched is true
@@ -417,7 +444,7 @@ function checkForExistingReason(callback) {
       callback(hasWatchedReason);
     };
     
-    request.onerror = (event) => {
+    getRequest.onerror = (event) => {
       console.error('Error getting records:', event.target.error);
       callback(false);
     };
@@ -433,7 +460,6 @@ function initBlocker() {
   // Check if this video already has a reason before blocking
   checkForExistingReason((hasReason) => {
     if (hasReason) {
-      console.log('This video already has a reason, skipping blocker');
       return;
     }
     
