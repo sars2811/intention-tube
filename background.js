@@ -47,5 +47,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse(result.settings || { isEnabled: true, blockingDuration: 5 });
     });
     return true; // Required for async sendResponse
+  } else if (message.action === 'closeTab') {
+    // Close the tab from which the message was sent
+    if (sender.tab && sender.tab.id) {
+      chrome.tabs.remove(sender.tab.id);
+    }
   }
 });

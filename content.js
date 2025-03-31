@@ -216,19 +216,9 @@ function createBlockerOverlay() {
       // Save the reason to IndexedDB with watched=false
       saveToIndexedDB(reason, false);
     }
-    
-    // First remove the overlay
-    removeOverlay();
-    
-    // Stop any interval that might be running
-    if (window.pauseCheckInterval) {
-      clearInterval(window.pauseCheckInterval);
-    }
-    
-    // Then navigate away from the video
-    setTimeout(() => {
-      window.history.back();
-    }, 100);
+
+    // Send a message to the background script to close this tab
+    chrome.runtime.sendMessage({ action: "closeTab" });
   });
 }
 
