@@ -1,0 +1,106 @@
+/* Styles for the Intention Tube overlay */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+#intention-tube-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999999;
+  color: white;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: auto !important;
+}
+
+#intention-tube-container {
+  background-color: #2b2b2b;
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  pointer-events: all; /* Allow interaction within the container */
+}
+
+#intention-tube-title {
+  margin-top: 0;
+  color: white;
+}
+
+#intention-tube-timer {
+  font-size: 18px;
+  margin: 15px 0;
+  color: #ff9800;
+}
+
+#intention-tube-reason {
+  width: calc(100% - 40px);
+  height: 100px;
+  margin: 15px 0;
+  padding: 10px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  font-size: 16px;
+  background-color: #333;
+  color: white;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+#intention-tube-button-container {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+#intention-tube-button-container button {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.1s ease;
+  color: white;
+}
+
+#intention-tube-watch {
+  background-color: #4CAF50; /* Green */
+}
+
+#intention-tube-watch:hover {
+  background-color: #45a049;
+}
+
+#intention-tube-watch:disabled {
+  background-color: #757575; /* Grey */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+#intention-tube-cancel {
+  background-color: #f44336; /* Red */
+}
+
+#intention-tube-cancel:hover {
+  background-color: #e53935;
+}
+
+#intention-tube-button-container button:active {
+    transform: scale(0.98);
+}

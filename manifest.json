@@ -21,5 +21,11 @@
   "background": {
     "service_worker": "background.js"
   },
-  "options_page": "settings.html"
+  "options_page": "settings.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["overlay.html", "overlay.css"],
+      "matches": ["*://*.youtube.com/*"]
+    }
+  ]
 }
