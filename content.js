@@ -327,15 +327,37 @@ function resumeVideo() {
   
   const videoElements = document.querySelectorAll('video');
   videoElements.forEach(video => {
-    if (window.intentionTube.originalVideoState && window.intentionTube.originalVideoState.hasOwnProperty('muted')) {
-      video.muted = window.intentionTube.originalVideoState.muted;
-    }
+    const originallyMuted = window.intentionTube.originalVideoState?.muted ?? false;
     
-    if (window.intentionTube.originalVideoState && !window.intentionTube.originalVideoState.paused) {
+    // Restore the original muted state directly on the video element
+    video.muted = originallyMuted;
+    
+    // Attempt to play the video
+    if (!window.intentionTube.originalVideoState?.paused) {
       video.play().catch(e => console.error('Error playing video:', e));
     }
+    
+    // Force unmute via UI click if it was originally unmuted but might still be muted
+    if (!originallyMuted) {
+      // Short delay to ensure player UI is potentially updated after play()
+      setTimeout(() => {
+        // Double-check the video element's muted status
+        if (video.muted) {
+          console.log('Video still muted, attempting UI unmute click.');
+          video.muted = false; // Try setting again just in case
+          const muteButton = document.querySelector('.ytp-mute-button');
+          // Check if the button title indicates it's currently muted (needs unmuting)
+          if (muteButton && (muteButton.getAttribute('title')?.includes('Unmute') || muteButton.getAttribute('data-title-on')?.includes('Unmute'))) {
+            muteButton.click();
+            console.log('Clicked unmute button.');
+          }
+        } else {
+          console.log('Video correctly unmuted via property setting.');
+        }
+      }, 100); // 100ms delay
+    }
   });
-  
+   
   if (window.yt && window.yt.player && window.yt.player.getPlayerByElement) {
     try {
       const playerContainer = document.querySelector('#movie_player');
