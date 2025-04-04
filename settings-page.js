@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Clear history button
   clearHistoryBtn.addEventListener('click', async () => {
     if (confirm('Are you sure you want to clear all history? This cannot be undone.')) {
-      await IntentionTubeDB.clearAllReasons();
+      await IntentionTubeDB.clearAllAttempts();
       await loadHistory();
     }
   });
@@ -95,8 +95,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Export history button
   exportHistoryBtn.addEventListener('click', async () => {
     try {
-      const reasons = await IntentionTubeDB.getAllReasons();
-      const dataStr = JSON.stringify(reasons, null, 2);
+      const attempts = await IntentionTubeDB.getAllAttempts();
+      const dataStr = JSON.stringify(attempts, null, 2);
       const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
       
       const exportFileDefaultName = 'intention-tube-history.json';
@@ -114,32 +114,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Function to load and display history
   async function loadHistory() {
     try {
-      const reasons = await IntentionTubeDB.getAllReasons();
+      const attempts = await IntentionTubeDB.getAllAttempts();
       
-      if (reasons.length === 0) {
+      if (attempts.length === 0) {
         historyList.innerHTML = '<div class="empty-history">No history available yet.</div>';
         return;
       }
       
-      // Sort reasons by timestamp (newest first)
-      reasons.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      // Sort attempts by timestamp (newest first)
+      attempts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       
       // Create HTML for history items
-      const historyHTML = reasons.map(item => {
-        const date = new Date(item.timestamp);
+      const historyHTML = attempts.map(attempt => {
+        const date = new Date(attempt.timestamp);
         const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-        const statusClass = item.watched ? 'watched' : 'cancelled';
-        const statusText = item.watched ? 'Watched' : 'Cancelled';
+        const statusClass = attempt.outcome === 'watched' ? 'watched' : 'cancelled';
+        const statusText = attempt.outcome === 'watched' ? 'Watched' : 'Cancelled';
         
         return `
           <div class="history-item">
-            <div class="history-reason">${escapeHTML(item.reason)}</div>
+            <div class="history-reason">${escapeHTML(attempt.title || attempt.videoId)}</div>
             <div class="history-meta">
               <span>${formattedDate}</span>
               <span class="history-status ${statusClass}">${statusText}</span>
             </div>
             <div class="history-url">
-              <a href="${item.videoUrl}" target="_blank">${truncateUrl(item.videoUrl)}</a>
+              <a href="https://www.youtube.com/watch?v=${attempt.videoId}" target="_blank">${truncateUrl(`https://www.youtube.com/watch?v=${attempt.videoId}`)}</a>
             </div>
           </div>
         `;

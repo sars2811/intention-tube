@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Load stats
   try {
-    const stats = await IntentionTubeDB.getWatchStats();
+    const stats = await IntentionTubeDB.getAttemptStats();
     updateStatsUI(stats);
   } catch (error) {
     console.error('Error loading stats:', error);
@@ -68,14 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Update stats UI
   function updateStatsUI(stats) {
-    watchedCount.textContent = stats.watched;
-    cancelledCount.textContent = stats.cancelled;
-    
-    // Calculate intentionality rate
-    const rate = stats.total > 0 
-      ? Math.round((stats.watched / stats.total) * 100) 
-      : 0;
-    
-    intentionalityRate.textContent = `${rate}%`;
+    watchedCount.textContent = stats.watched || 0;
+    cancelledCount.textContent = stats.cancelled || 0;
+    intentionalityRate.textContent = `${stats.intentionalityRate || 0}%`;
   }
 });

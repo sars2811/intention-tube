@@ -18,6 +18,20 @@ async function createBlockerOverlay() {
     return;
   }
 
+  const videoId = getVideoIdFromUrl(window.location.href);
+  let attemptId = null;
+
+  // Save initial 'pending' attempt
+  if (videoId) {
+    try {
+      attemptId = await window.IntentionTubeDB.saveAttempt(videoId, 'pending', null, document.title);
+      console.log('Pending attempt saved with ID:', attemptId);
+    } catch (error) {
+      console.error('Error saving pending attempt:', error);
+      // Proceed without an attemptId? Or show error?
+    }
+  }
+
   // First, add a style to prevent scrolling on the body
   const bodyStyle = document.createElement('style');
   bodyStyle.id = 'intention-tube-body-style';
@@ -94,29 +108,52 @@ async function createBlockerOverlay() {
     
     reasonInput.addEventListener('input', checkReasonInput);
 
-    watchButton.addEventListener('click', () => {
-      if (!watchButton.disabled) {
-        const reason = reasonInput.value.trim();
-        const videoId = getVideoIdFromUrl(window.location.href);
-        if (reason) {
-          window.IntentionTubeDB.saveReason(reason, videoId, true);
-          if (videoId) {
+    watchButton.addEventListener('click', async () => { 
+      if (!attemptId) {
+        console.error("Cannot update attempt: No attempt ID available.");
+        // Maybe just proceed with unblocking?
+        removeOverlay();
+        resumeVideo();
+        return;
+      }
+
+      const reason = reasonInput.value.trim();
+      if (reason) {
+        try {
+          // Update attempt: attemptId, outcome='watched', reason
+          await window.IntentionTubeDB.updateAttemptOutcome(attemptId, 'watched', reason);
+          if (videoId) { // videoId should still be available from overlay creation scope
             saveWatchTimestamp(videoId); // Save timestamp when unblocked
           }
           removeOverlay();
           resumeVideo();
-        } else {
-          alert('Please enter a reason for watching this video.');
+        } catch (error) {
+          console.error("Error saving watched attempt:", error);
+          // Decide if we should still proceed?
+          alert("Error saving your reason. Please try again."); // Inform user
         }
+      } else {
+        alert('Please enter a reason for watching this video.');
       }
     });
 
-    cancelButton.addEventListener('click', () => {
-      const reason = reasonInput.value.trim();
-      const videoId = getVideoIdFromUrl(window.location.href);
-      if (reason) {
-        window.IntentionTubeDB.saveReason(reason, videoId, false);
+    cancelButton.addEventListener('click', async () => { 
+      if (!attemptId) {
+        console.error("Cannot update attempt: No attempt ID available.");
+        // Proceed with closing tab anyway?
+        chrome.runtime.sendMessage({ action: "closeTab" });
+        return;
       }
+
+      try {
+        // Update attempt: attemptId, outcome='cancelled', reason=null
+        await window.IntentionTubeDB.updateAttemptOutcome(attemptId, 'cancelled', null);
+        console.log("Cancelled attempt updated for ID:", attemptId);
+      } catch (error) {
+        console.error("Error saving cancelled attempt:", error);
+        // Don't close tab if saving failed? Or proceed anyway?
+      }
+      // Close tab *after* attempting to save
       chrome.runtime.sendMessage({ action: "closeTab" });
     });
 
@@ -310,52 +347,6 @@ function resumeVideo() {
   }
 }
 
-// Function to check if this video already has a reason
-function checkForExistingReason(callback) {
-  const currentUrl = window.location.href;
-  const videoId = getVideoIdFromUrl(currentUrl);
-
-  if (!videoId) {
-    callback(false); 
-    return;
-  }
-
-  const request = indexedDB.open('IntentionTubeDB', 1);
-  
-  request.onerror = (event) => {
-    console.error('Error opening database:', event.target.error);
-    callback(false); 
-  };
-  
-  request.onsuccess = (event) => {
-    const db = event.target.result;
-    
-    if (!db.objectStoreNames.contains('reasons')) {
-      callback(false);
-      return;
-    }
-    
-    const transaction = db.transaction(['reasons'], 'readonly');
-    const store = transaction.objectStore('reasons');
-    const index = store.index('videoUrl');
-    
-    const getRequest = index.getAll(videoId); 
-    
-    getRequest.onsuccess = (event) => {
-      const records = event.target.result;
-      
-      const hasWatchedReason = records.some(record => record.watched === true);
-      
-      callback(hasWatchedReason);
-    };
-    
-    getRequest.onerror = (event) => {
-      console.error('Error getting records:', event.target.error);
-      callback(false);
-    };
-  };
-}
-
 // Initialize the blocker
 async function initBlocker() {
   if (!window.intentionTube.settings.isEnabled) {
@@ -381,15 +372,11 @@ async function initBlocker() {
     return;
   }
   
-  checkForExistingReason((hasReason) => {
-    if (hasReason) {
-      return;
-    }
-    
-    window.intentionTube.videoBlocked = true;
-    pauseVideo();
-    createBlockerOverlay();
-  });
+  // Block is now solely determined by hasWatchTimeExpired
+  console.log('Initializing Intention Tube blocker...');
+  window.intentionTube.videoBlocked = true;
+  pauseVideo();
+  createBlockerOverlay();
 }
 
 // --- Main Initialization ---
