@@ -11,18 +11,6 @@ window.intentionTube = window.intentionTube || {
   }
 };
 
-// Get settings from storage on initialization
-function getSettingsFromStorage() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get('settings', (result) => {
-      if (result.settings) {
-        window.intentionTube.settings = result.settings;
-      }
-      resolve(window.intentionTube.settings);
-    });
-  });
-}
-
 // Create and inject the blocker overlay
 async function createBlockerOverlay() { 
   // Check if overlay already exists
@@ -111,7 +99,7 @@ async function createBlockerOverlay() {
         const reason = reasonInput.value.trim();
         const videoId = getVideoIdFromUrl(window.location.href);
         if (reason) {
-          saveToIndexedDB(reason, true);
+          window.IntentionTubeDB.saveReason(reason, videoId, true);
           if (videoId) {
             saveWatchTimestamp(videoId); // Save timestamp when unblocked
           }
@@ -125,8 +113,9 @@ async function createBlockerOverlay() {
 
     cancelButton.addEventListener('click', () => {
       const reason = reasonInput.value.trim();
+      const videoId = getVideoIdFromUrl(window.location.href);
       if (reason) {
-        saveToIndexedDB(reason, false);
+        window.IntentionTubeDB.saveReason(reason, videoId, false);
       }
       chrome.runtime.sendMessage({ action: "closeTab" });
     });
@@ -150,61 +139,14 @@ function getVideoIdFromUrl(url) {
   return null;
 }
 
-// Save reason to IndexedDB
-function saveToIndexedDB(reason, watched) {
-  const currentUrl = window.location.href;
-  const videoId = getVideoIdFromUrl(currentUrl);
-
-  if (!videoId) {
-    console.error("Could not extract video ID from URL:", currentUrl);
-    return; 
-  }
-  
-  const request = indexedDB.open('IntentionTubeDB', 1);
-  
-  request.onerror = (event) => {
-    console.error('Error opening database:', event.target.error);
-  };
-  
-  request.onupgradeneeded = (event) => {
-    const db = event.target.result;
-    
-    if (!db.objectStoreNames.contains('reasons')) {
-      const store = db.createObjectStore('reasons', { keyPath: 'id', autoIncrement: true });
-      store.createIndex('timestamp', 'timestamp', { unique: false });
-      store.createIndex('videoUrl', 'videoUrl', { unique: false });
-      store.createIndex('watched', 'watched', { unique: false });
-    }
-  };
-  
-  request.onsuccess = (event) => {
-    const db = event.target.result;
-    const transaction = db.transaction(['reasons'], 'readwrite');
-    const store = transaction.objectStore('reasons');
-    
-    const data = {
-      reason: reason,
-      timestamp: new Date(),
-      videoUrl: videoId, 
-      watched: watched,
-      title: document.title 
-    };
-    
-    store.add(data);
-  };
-}
-
 // Save the timestamp when a video was unblocked
 async function saveWatchTimestamp(videoId) {
   if (!videoId) return;
-  const key = `watchTimestamp_${videoId}`;
-  const data = {};
-  data[key] = Date.now();
   try {
-    await chrome.storage.local.set(data);
-    console.log(`Timestamp saved for video ${videoId}`);
+    await window.IntentionTubeDB.saveWatchTimestampDB(videoId, Date.now());
+    console.log(`Timestamp saved for video ${videoId} in IndexedDB`);
   } catch (error) {
-    console.error(`Error saving timestamp for video ${videoId}:`, error);
+    console.error(`Error saving timestamp for video ${videoId} to IndexedDB:`, error);
   }
 }
 
@@ -212,31 +154,26 @@ async function saveWatchTimestamp(videoId) {
 async function hasWatchTimeExpired(videoId) {
   if (!videoId) return true; // If no video ID, assume expired/block
 
-  const key = `watchTimestamp_${videoId}`;
-  try {
-    const result = await chrome.storage.local.get(key);
-    const timestamp = result[key];
+  const timestamp = await window.IntentionTubeDB.getWatchTimestampDB(videoId);
 
-    if (!timestamp) {
-      console.log(`No timestamp found for video ${videoId}, blocking.`);
-      return true; // No timestamp means it wasn't unblocked recently
-    }
+  if (!timestamp) {
+    console.log(`No timestamp found for video ${videoId} in IndexedDB, blocking.`);
+    return true; // No timestamp means it wasn't unblocked recently
+  }
 
-    const watchTimeLimitHours = window.intentionTube.settings.watchTimeLimit || 2; // Use default if setting not loaded
-    const watchTimeLimitMillis = watchTimeLimitHours * 60 * 60 * 1000;
-    const expiryTime = timestamp + watchTimeLimitMillis;
+  const watchTimeLimitHours = window.intentionTube.settings.watchTimeLimit || 2; // Use default if setting not loaded
+  const watchTimeLimitMillis = watchTimeLimitHours * 60 * 60 * 1000;
+  const expiryTime = timestamp + watchTimeLimitMillis;
 
-    if (Date.now() >= expiryTime) {
-      // Time expired, remove the timestamp
-      await chrome.storage.local.remove(key);
-      return true;
-    } else {
-      // Time is still valid
-      return false;
-    }
-  } catch (error) {
-    console.error(`Error checking timestamp for video ${videoId}:`, error);
-    return true; // Assume expired on error
+  if (Date.now() >= expiryTime) {
+    console.log(`Watch time expired for video ${videoId} in IndexedDB, removing timestamp and blocking.`);
+    // Time expired, remove the timestamp
+    await window.IntentionTubeDB.deleteWatchTimestampDB(videoId);
+    return true;
+  } else {
+    console.log(`Watch time still valid for video ${videoId} in IndexedDB, allowing playback.`);
+    // Time is still valid
+    return false;
   }
 }
 
@@ -421,8 +358,6 @@ function checkForExistingReason(callback) {
 
 // Initialize the blocker
 async function initBlocker() {
-  await getSettingsFromStorage(); 
-  
   if (!window.intentionTube.settings.isEnabled) {
     console.log('Intention Tube is disabled. Skipping blocker.');
     return;
@@ -457,18 +392,20 @@ async function initBlocker() {
   });
 }
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'initBlocker') {
-    Object.assign(window.intentionTube.settings, message.settings);
-    initBlocker();
-    sendResponse({ success: true });
-  }
-  return true;
-});
+// --- Main Initialization ---
+// Load settings first, then initialize the blocker logic
+(async () => {
+  try {
+    // loadSettings() is exported as window.IntentionTubeSettings.loadSettings
+    const loadedSettings = await window.IntentionTubeSettings.loadSettings(); 
+    window.intentionTube.settings = loadedSettings; // Update global settings object
+    
+    console.log("Intention Tube settings loaded:", window.intentionTube.settings);
 
-// Initialize when the content script is first loaded
-getSettingsFromStorage().then(settings => {
-  Object.assign(window.intentionTube.settings, settings);
-  initBlocker();
-});
+    // Now that settings are loaded, run the main blocker logic
+    initBlocker(); 
+
+  } catch (error) {
+    console.error("Error initializing Intention Tube content script:", error);
+  }
+})();

@@ -1,7 +1,8 @@
 // Database operations for Intention Tube
 const DB_NAME = 'IntentionTubeDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; 
 const REASONS_STORE = 'reasons';
+const TIMESTAMPS_STORE = 'watchTimestamps';
 
 // Initialize the database
 function initDB() {
@@ -27,6 +28,11 @@ function initDB() {
         store.createIndex('timestamp', 'timestamp', { unique: false });
         store.createIndex('videoUrl', 'videoUrl', { unique: false });
         store.createIndex('watched', 'watched', { unique: false });
+      }
+      
+      // Create object store for watch timestamps (using videoId as key)
+      if (!db.objectStoreNames.contains(TIMESTAMPS_STORE)) {
+        db.createObjectStore(TIMESTAMPS_STORE);
       }
     };
   });
@@ -134,10 +140,67 @@ function clearAllReasons() {
   });
 }
 
+// Save/Update watch timestamp for a video ID
+function saveWatchTimestampDB(videoId, timestamp) {
+  return new Promise(async (resolve, reject) => {
+    if (!videoId) return reject('Video ID is required');
+    try {
+      const db = await initDB();
+      const transaction = db.transaction([TIMESTAMPS_STORE], 'readwrite');
+      const store = transaction.objectStore(TIMESTAMPS_STORE);
+      const request = store.put(timestamp, videoId); // Use videoId as key
+      
+      request.onsuccess = () => resolve();
+      request.onerror = (event) => reject(event.target.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// Get watch timestamp for a video ID
+function getWatchTimestampDB(videoId) {
+  return new Promise(async (resolve, reject) => {
+    if (!videoId) return reject('Video ID is required');
+    try {
+      const db = await initDB();
+      const transaction = db.transaction([TIMESTAMPS_STORE], 'readonly');
+      const store = transaction.objectStore(TIMESTAMPS_STORE);
+      const request = store.get(videoId); // Get by videoId key
+      
+      request.onsuccess = () => resolve(request.result); // Returns timestamp or undefined
+      request.onerror = (event) => reject(event.target.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// Delete watch timestamp for a video ID
+function deleteWatchTimestampDB(videoId) {
+  return new Promise(async (resolve, reject) => {
+    if (!videoId) return reject('Video ID is required');
+    try {
+      const db = await initDB();
+      const transaction = db.transaction([TIMESTAMPS_STORE], 'readwrite');
+      const store = transaction.objectStore(TIMESTAMPS_STORE);
+      const request = store.delete(videoId); // Delete by videoId key
+      
+      request.onsuccess = () => resolve();
+      request.onerror = (event) => reject(event.target.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 // Export the functions
 window.IntentionTubeDB = {
   saveReason,
   getAllReasons,
   getWatchStats,
-  clearAllReasons
+  clearAllReasons,
+  saveWatchTimestampDB,
+  getWatchTimestampDB,
+  deleteWatchTimestampDB
 };

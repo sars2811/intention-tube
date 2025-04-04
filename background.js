@@ -14,25 +14,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       
       // Only proceed if the extension is enabled
       if (settings.isEnabled) {
-        // Inject the content script
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['content.js']
-        });
-        
-        // Wait a moment to ensure content script is fully loaded
-        setTimeout(() => {
-          // Send the settings to the content script
-          chrome.tabs.sendMessage(tabId, { 
-            action: 'initBlocker',
-            settings: settings
-          }, (response) => {
-            // Handle potential error if content script is not ready
-            if (chrome.runtime.lastError) {
-              console.log('Could not send message to content script:', chrome.runtime.lastError);
-            }
-          });
-        }, 200);
+        // Content script is now injected via manifest.json
+        // No need to inject or send settings message from here
       }
     } catch (error) {
       console.error('Error in background script:', error);

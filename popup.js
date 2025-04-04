@@ -14,9 +14,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load settings
   const settings = await IntentionTubeSettings.loadSettings();
   
-  // Ensure watchTimeLimit has a default value if not set
-  settings.watchTimeLimit = settings.watchTimeLimit ?? 2; // Default to 2 hours
-  
   // Update UI based on settings
   updateStatusUI(settings.isEnabled);
   watchTimeLimitInput.value = settings.watchTimeLimit;
