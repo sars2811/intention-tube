@@ -262,6 +262,16 @@
     </div>
     
     <div class="card">
+      <h2>Watch Time Limit</h2>
+      <div class="form-group">
+        <label for="watchTimeLimit">Allowed Watch Time (hours):</label>
+        <input type="number" id="watchTimeLimit" name="watchTimeLimit" min="0.1" step="0.1" value="2">
+        <span id="watchTimeLimitValue" class="range-value">2 hours</span>
+      </div>
+      <p>Set the duration for which a video remains unblocked after providing a reason.</p>
+    </div>
+    
+    <div class="card">
       <h2>Viewing History</h2>
       <div id="history-list" class="history-list">
         <div class="empty-history">No history available yet.</div>

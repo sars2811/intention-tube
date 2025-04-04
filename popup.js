@@ -8,12 +8,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const watchedCount = document.getElementById('watched-count');
   const cancelledCount = document.getElementById('cancelled-count');
   const intentionalityRate = document.getElementById('intentionality-rate');
+  const watchTimeLimitInput = document.getElementById('watchTimeLimitPopup');
+  const watchTimeLimitValue = document.getElementById('watchTimeLimitValuePopup');
 
   // Load settings
   const settings = await IntentionTubeSettings.loadSettings();
   
+  // Ensure watchTimeLimit has a default value if not set
+  settings.watchTimeLimit = settings.watchTimeLimit ?? 2; // Default to 2 hours
+  
   // Update UI based on settings
   updateStatusUI(settings.isEnabled);
+  watchTimeLimitInput.value = settings.watchTimeLimit;
+  watchTimeLimitValue.textContent = `Current: ${settings.watchTimeLimit} hours`;
   
   // Load stats
   try {
@@ -33,6 +40,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Open settings page
   settingsButton.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
+  });
+  
+  // Watch time limit input change
+  watchTimeLimitInput.addEventListener('change', async () => {
+    const value = parseFloat(watchTimeLimitInput.value);
+    if (!isNaN(value) && value > 0) {
+      settings.watchTimeLimit = value;
+      watchTimeLimitValue.textContent = `Current: ${value} hours`;
+      await IntentionTubeSettings.saveSettings(settings);
+    } else {
+      // Reset to the current saved value if input is invalid
+      watchTimeLimitInput.value = settings.watchTimeLimit;
+      watchTimeLimitValue.textContent = `Current: ${settings.watchTimeLimit} hours`;
+    }
   });
   
   // Update status UI based on enabled state

@@ -2,15 +2,16 @@
 const DEFAULT_SETTINGS = {
   blockingDuration: 5, // Default blocking duration in seconds
   isEnabled: true,     // Extension enabled by default
-  darkMode: false      // Light mode by default
+  darkMode: false,     // Light mode by default
+  watchTimeLimit: 2    // Default watch time limit in hours
 };
 
 // Load settings from storage
 function loadSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get('settings', (result) => {
-      // If no settings found, use defaults
-      const settings = result.settings || DEFAULT_SETTINGS;
+      // Merge stored settings with defaults
+      const settings = { ...DEFAULT_SETTINGS, ...(result.settings || {}) };
       resolve(settings);
     });
   });

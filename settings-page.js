@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const historyList = document.getElementById('history-list');
   const clearHistoryBtn = document.getElementById('clear-history');
   const exportHistoryBtn = document.getElementById('export-history');
+  const watchTimeLimitInput = document.getElementById('watchTimeLimit');
+  const watchTimeLimitValue = document.getElementById('watchTimeLimitValue');
 
   // Load settings
   const settings = await IntentionTubeSettings.loadSettings();
@@ -16,8 +18,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize UI with current settings
   darkModeToggle.checked = settings.darkMode;
   extensionToggle.checked = settings.isEnabled;
+  // Ensure watchTimeLimit has a default value if not set
+  settings.watchTimeLimit = settings.watchTimeLimit ?? 2; // Default to 2 hours
+  
   blockingDuration.value = settings.blockingDuration;
   durationValue.textContent = settings.blockingDuration;
+  watchTimeLimitInput.value = settings.watchTimeLimit;
+  watchTimeLimitValue.textContent = `${settings.watchTimeLimit} hours`;
   
   // Apply dark mode if enabled
   if (settings.darkMode) {
@@ -54,6 +61,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   blockingDuration.addEventListener('change', async () => {
     settings.blockingDuration = parseInt(blockingDuration.value);
     await IntentionTubeSettings.saveSettings(settings);
+  });
+  
+  // Watch time limit input
+  watchTimeLimitInput.addEventListener('input', () => {
+    const value = parseFloat(watchTimeLimitInput.value);
+    if (!isNaN(value) && value > 0) {
+      watchTimeLimitValue.textContent = `${value} hours`;
+    }
+  });
+
+  watchTimeLimitInput.addEventListener('change', async () => {
+    const value = parseFloat(watchTimeLimitInput.value);
+    if (!isNaN(value) && value > 0) {
+      settings.watchTimeLimit = value;
+      watchTimeLimitValue.textContent = `${value} hours`; // Ensure display updates on change too
+      await IntentionTubeSettings.saveSettings(settings);
+    } else {
+      // Reset to the current saved value if input is invalid
+      watchTimeLimitInput.value = settings.watchTimeLimit;
+      watchTimeLimitValue.textContent = `${settings.watchTimeLimit} hours`;
+    }
   });
   
   // Clear history button

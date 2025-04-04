@@ -4,7 +4,11 @@ window.intentionTube = window.intentionTube || {
   videoBlocked: false,
   timerInterval: null,
   originalVideoState: null,
-  settings: { blockingDuration: 5, isEnabled: true }
+  settings: { 
+    blockingDuration: 5, 
+    isEnabled: true, 
+    watchTimeLimit: 2 // Default watch time limit in hours
+  }
 };
 
 // Get settings from storage on initialization
@@ -105,8 +109,12 @@ async function createBlockerOverlay() {
     watchButton.addEventListener('click', () => {
       if (!watchButton.disabled) {
         const reason = reasonInput.value.trim();
+        const videoId = getVideoIdFromUrl(window.location.href);
         if (reason) {
           saveToIndexedDB(reason, true);
+          if (videoId) {
+            saveWatchTimestamp(videoId); // Save timestamp when unblocked
+          }
           removeOverlay();
           resumeVideo();
         } else {
@@ -184,6 +192,52 @@ function saveToIndexedDB(reason, watched) {
     
     store.add(data);
   };
+}
+
+// Save the timestamp when a video was unblocked
+async function saveWatchTimestamp(videoId) {
+  if (!videoId) return;
+  const key = `watchTimestamp_${videoId}`;
+  const data = {};
+  data[key] = Date.now();
+  try {
+    await chrome.storage.local.set(data);
+    console.log(`Timestamp saved for video ${videoId}`);
+  } catch (error) {
+    console.error(`Error saving timestamp for video ${videoId}:`, error);
+  }
+}
+
+// Check if the allowed watch time has expired
+async function hasWatchTimeExpired(videoId) {
+  if (!videoId) return true; // If no video ID, assume expired/block
+
+  const key = `watchTimestamp_${videoId}`;
+  try {
+    const result = await chrome.storage.local.get(key);
+    const timestamp = result[key];
+
+    if (!timestamp) {
+      console.log(`No timestamp found for video ${videoId}, blocking.`);
+      return true; // No timestamp means it wasn't unblocked recently
+    }
+
+    const watchTimeLimitHours = window.intentionTube.settings.watchTimeLimit || 2; // Use default if setting not loaded
+    const watchTimeLimitMillis = watchTimeLimitHours * 60 * 60 * 1000;
+    const expiryTime = timestamp + watchTimeLimitMillis;
+
+    if (Date.now() >= expiryTime) {
+      // Time expired, remove the timestamp
+      await chrome.storage.local.remove(key);
+      return true;
+    } else {
+      // Time is still valid
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error checking timestamp for video ${videoId}:`, error);
+    return true; // Assume expired on error
+  }
 }
 
 // Remove the blocker overlay
@@ -344,8 +398,29 @@ function checkForExistingReason(callback) {
 }
 
 // Initialize the blocker
-function initBlocker() {
-  if (!window.intentionTube.settings.isEnabled || window.intentionTube.videoBlocked) {
+async function initBlocker() {
+  await getSettingsFromStorage(); 
+  
+  if (!window.intentionTube.settings.isEnabled) {
+    console.log('Intention Tube is disabled. Skipping blocker.');
+    return;
+  }
+
+  const videoId = getVideoIdFromUrl(window.location.href);
+  const expired = await hasWatchTimeExpired(videoId);
+
+  if (!expired) {
+    console.log('Watch time limit still active, not blocking.');
+    // Ensure video plays if we are within the time limit
+    // (May not be strictly necessary if YT resumes automatically, but good safety)
+    resumeVideo(); 
+    return; // Don't block if time limit is still valid
+  }
+
+  // Proceed with blocking only if expired or never unblocked
+  console.log('Initializing Intention Tube blocker...');
+   
+  if (window.intentionTube.videoBlocked) {
     return;
   }
   
