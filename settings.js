@@ -5,7 +5,7 @@ const DEFAULT_SETTINGS = {
   watchTimeLimit: 2, // Default watch time limit in hours
 };
 
-function loadSettings() {
+export function loadSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get("settings", (result) => {
       const settings = { ...DEFAULT_SETTINGS, ...(result.settings || {}) };
@@ -14,7 +14,7 @@ function loadSettings() {
   });
 }
 
-function saveSettings(settings) {
+export function saveSettings(settings) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ settings }, () => {
       resolve();
@@ -22,13 +22,6 @@ function saveSettings(settings) {
   });
 }
 
-function resetSettings() {
+export function resetSettings() {
   return saveSettings(DEFAULT_SETTINGS);
 }
-
-window.IntentionTubeSettings = {
-  loadSettings,
-  saveSettings,
-  resetSettings,
-  DEFAULT_SETTINGS,
-};

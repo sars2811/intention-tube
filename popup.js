@@ -1,3 +1,15 @@
+async function getMessageResponseFromBackground(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(response);
+      }
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   const statusIcon = document.getElementById("status-icon");
   const statusText = document.getElementById("status-text");
@@ -11,14 +23,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     "watchTimeLimitValuePopup"
   );
 
-  const settings = await IntentionTubeSettings.loadSettings();
+  const settings = await getMessageResponseFromBackground({
+    action: "getSettings",
+  });
 
   updateStatusUI(settings.isEnabled);
   watchTimeLimitInput.value = settings.watchTimeLimit;
   watchTimeLimitValue.textContent = `Current: ${settings.watchTimeLimit} hours`;
 
   try {
-    const stats = await IntentionTubeDB.getAttemptStats();
+    const stats = await getMessageResponseFromBackground({
+      action: "getAttemptStats",
+    });
     updateStatsUI(stats);
   } catch (error) {
     console.error("Error loading stats:", error);
@@ -26,7 +42,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   toggleButton.addEventListener("click", async () => {
     settings.isEnabled = !settings.isEnabled;
-    await IntentionTubeSettings.saveSettings(settings);
+    await chrome.runtime.sendMessage({
+      action: "saveSettings",
+      payload: settings,
+    });
     updateStatusUI(settings.isEnabled);
   });
 
@@ -39,7 +58,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!isNaN(value) && value > 0) {
       settings.watchTimeLimit = value;
       watchTimeLimitValue.textContent = `Current: ${value} hours`;
-      await IntentionTubeSettings.saveSettings(settings);
+      await chrome.runtime.sendMessage({
+        action: "saveSettings",
+        payload: settings,
+      });
     } else {
       watchTimeLimitInput.value = settings.watchTimeLimit;
       watchTimeLimitValue.textContent = `Current: ${settings.watchTimeLimit} hours`;

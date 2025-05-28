@@ -10,7 +10,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const watchTimeLimitInput = document.getElementById("watchTimeLimit");
   const watchTimeLimitValue = document.getElementById("watchTimeLimitValue");
 
-  const settings = await IntentionTubeSettings.loadSettings();
+  const settings = await chrome.runtime.sendMessage({
+    action: "getSettings",
+  });
 
   darkModeToggle.checked = settings.darkMode;
   extensionToggle.checked = settings.isEnabled;
@@ -32,13 +34,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   darkModeToggle.addEventListener("change", async () => {
     settings.darkMode = darkModeToggle.checked;
     document.body.classList.toggle("dark-mode", settings.darkMode);
-    await IntentionTubeSettings.saveSettings(settings);
+    await chrome.runtime.sendMessage({
+      action: "saveSettings",
+      payload: settings,
+    });
   });
 
   extensionToggle.addEventListener("change", async () => {
     settings.isEnabled = extensionToggle.checked;
     extensionStatus.textContent = settings.isEnabled ? "Enabled" : "Disabled";
-    await IntentionTubeSettings.saveSettings(settings);
+    await chrome.runtime.sendMessage({
+      action: "saveSettings",
+      payload: settings,
+    });
   });
 
   blockingDuration.addEventListener("input", () => {
@@ -47,7 +55,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   blockingDuration.addEventListener("change", async () => {
     settings.blockingDuration = parseInt(blockingDuration.value);
-    await IntentionTubeSettings.saveSettings(settings);
+    await chrome.runtime.sendMessage({
+      action: "saveSettings",
+      payload: settings,
+    });
   });
 
   watchTimeLimitInput.addEventListener("input", () => {
@@ -62,7 +73,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!isNaN(value) && value > 0) {
       settings.watchTimeLimit = value;
       watchTimeLimitValue.textContent = `${value} hours`;
-      await IntentionTubeSettings.saveSettings(settings);
+      await chrome.runtime.sendMessage({
+        action: "saveSettings",
+        payload: settings,
+      });
     } else {
       watchTimeLimitInput.value = settings.watchTimeLimit;
       watchTimeLimitValue.textContent = `${settings.watchTimeLimit} hours`;
@@ -75,14 +89,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Are you sure you want to clear all history? This cannot be undone."
       )
     ) {
-      await IntentionTubeDB.clearAllAttempts();
+      await chrome.runtime.sendMessage({
+        action: "clearAllAttempts",
+      });
       await loadHistory();
     }
   });
 
   exportHistoryBtn.addEventListener("click", async () => {
     try {
-      const attempts = await IntentionTubeDB.getAllAttempts();
+      const attempts = await chrome.runtime.sendMessage({
+        action: "getAllAttempts",
+      });
       const dataStr = JSON.stringify(attempts, null, 2);
       const dataUri =
         "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
@@ -101,7 +119,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function loadHistory() {
     try {
-      const attempts = await IntentionTubeDB.getAllAttempts();
+      const attempts = await chrome.runtime.sendMessage({
+        action: "getAllAttempts",
+      });
 
       if (attempts.length === 0) {
         historyList.innerHTML =

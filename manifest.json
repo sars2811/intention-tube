@@ -19,7 +19,8 @@
     "128": "images/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "options_page": "settings.html",
   "web_accessible_resources": [
@@ -30,9 +31,9 @@
   ],
   "content_scripts": [
     {
-      "matches": ["*://*.youtube.com/watch*"],
-      "js": ["database.js", "settings.js", "content.js"],
-      "css": ["overlay.css"], 
+      "matches": ["*://*.youtube.com/watch?v=*"],
+      "js": ["content.js"],
+      "css": ["overlay.css"],
       "run_at": "document_idle"
     }
   ]

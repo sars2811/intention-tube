@@ -45,7 +45,7 @@ The extension is built using standard web technologies:
 
 - `manifest.json`: Extension configuration
 - `popup.html/js`: Extension popup interface
-- `settings.html/js`: Settings page
+- `settings-page.js`: Settings page
 - `content.js`: YouTube page interaction
 - `background.js`: Background processes
 - `database.js`: IndexedDB operations

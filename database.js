@@ -1,10 +1,11 @@
-// Database operations for Intention Tube
 const DB_NAME = "IntentionTubeDB";
 const DB_VERSION = 3;
 const ATTEMPTS_STORE = "attempts";
 const TIMESTAMPS_STORE = "watchTimestamps";
 
-function initDB() {
+var db;
+
+export async function initDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -14,12 +15,11 @@ function initDB() {
     };
 
     request.onsuccess = (event) => {
-      const db = event.target.result;
-      resolve(db);
+      db = event.target.result;
     };
 
     request.onupgradeneeded = (event) => {
-      const db = event.target.result;
+      db = event.target.result;
       const transaction = event.target.transaction;
 
       if (!db.objectStoreNames.contains(ATTEMPTS_STORE)) {
@@ -30,25 +30,24 @@ function initDB() {
         store.createIndex("videoId", "videoId", { unique: false });
         store.createIndex("timestamp", "timestamp", { unique: false });
         store.createIndex("outcome", "outcome", { unique: false });
-        console.log("'attempts' store created.");
       }
 
       if (!db.objectStoreNames.contains(TIMESTAMPS_STORE)) {
-        db.createObjectStore(TIMESTAMPS_STORE);
-        console.log("'watchTimestamps' store created/ensured.");
+        const store = db.createObjectStore(TIMESTAMPS_STORE);
+        store.createIndex("videoId", "videoId", { unique: true });
       }
     };
   });
 }
 
-function saveAttempt(videoId, outcome, reason = null, title = "Unknown Title") {
+export function saveAttempt(params) {
+  const { videoId, outcome, reason, title = "Unknown Title" } = params;
   return new Promise(async (resolve, reject) => {
     try {
       if (!videoId) {
         return reject("Video ID is required for saving an attempt.");
       }
 
-      const db = await initDB();
       const transaction = db.transaction([ATTEMPTS_STORE], "readwrite");
       const store = transaction.objectStore(ATTEMPTS_STORE);
 
@@ -77,10 +76,10 @@ function saveAttempt(videoId, outcome, reason = null, title = "Unknown Title") {
   });
 }
 
-function updateAttemptOutcome(attemptId, outcome, reason = null) {
+export function updateAttemptOutcome(params) {
+  const { attemptId, outcome, reason = null } = params;
   return new Promise(async (resolve, reject) => {
     try {
-      const db = await initDB();
       const transaction = db.transaction([ATTEMPTS_STORE], "readwrite");
       const store = transaction.objectStore(ATTEMPTS_STORE);
 
@@ -95,9 +94,6 @@ function updateAttemptOutcome(attemptId, outcome, reason = null) {
           const updateRequest = store.put(attempt);
 
           updateRequest.onsuccess = () => {
-            console.log(
-              `Attempt updated: ID ${attemptId}, New Outcome: ${outcome}`
-            );
             resolve();
           };
           updateRequest.onerror = (event) => {
@@ -127,10 +123,9 @@ function updateAttemptOutcome(attemptId, outcome, reason = null) {
   });
 }
 
-function getAllAttempts() {
+export function getAllAttempts() {
   return new Promise(async (resolve, reject) => {
     try {
-      const db = await initDB();
       const transaction = db.transaction([ATTEMPTS_STORE], "readonly");
       const store = transaction.objectStore(ATTEMPTS_STORE);
       const request = store.getAll();
@@ -150,10 +145,9 @@ function getAllAttempts() {
   });
 }
 
-function getAttemptStats() {
+export function getAttemptStats() {
   return new Promise(async (resolve, reject) => {
     try {
-      const db = await initDB();
       const transaction = db.transaction([ATTEMPTS_STORE], "readonly");
       const store = transaction.objectStore(ATTEMPTS_STORE);
       const request = store.getAll();
@@ -168,7 +162,7 @@ function getAttemptStats() {
         ).length;
         const total = watchedCount + cancelledCount;
         const intentionalityRate =
-          total > 0 ? Math.round((watchedCount / total) * 100) : 0;
+          total > 0 ? Math.round((cancelledCount / total) * 100) : 0;
 
         const stats = {
           total,
@@ -181,20 +175,17 @@ function getAttemptStats() {
       };
 
       request.onerror = (event) => {
-        console.error("Error getting attempt stats:", event.target.error);
         reject(event.target.error);
       };
     } catch (error) {
-      console.error("Error in getAttemptStats:", error);
       reject(error);
     }
   });
 }
 
-function clearAllAttempts() {
+export async function clearAllAttempts() {
   return new Promise(async (resolve, reject) => {
     try {
-      const db = await initDB();
       const transaction = db.transaction([ATTEMPTS_STORE], "readwrite");
       const store = transaction.objectStore(ATTEMPTS_STORE);
       const request = store.clear();
@@ -214,14 +205,14 @@ function clearAllAttempts() {
   });
 }
 
-function saveWatchTimestampDB(videoId, timestamp) {
+export function saveWatchTimestamp(params) {
+  const { videoId, timestamp } = params;
   return new Promise(async (resolve, reject) => {
     if (!videoId) return reject("Video ID is required");
     try {
-      const db = await initDB();
       const transaction = db.transaction([TIMESTAMPS_STORE], "readwrite");
       const store = transaction.objectStore(TIMESTAMPS_STORE);
-      const request = store.put(timestamp, videoId); // Use videoId as key
+      const request = store.put(timestamp, videoId);
 
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(event.target.error);
@@ -231,16 +222,15 @@ function saveWatchTimestampDB(videoId, timestamp) {
   });
 }
 
-function getWatchTimestampDB(videoId) {
+export function getWatchTimestamp(videoId) {
   return new Promise(async (resolve, reject) => {
     if (!videoId) return reject("Video ID is required");
     try {
-      const db = await initDB();
       const transaction = db.transaction([TIMESTAMPS_STORE], "readonly");
       const store = transaction.objectStore(TIMESTAMPS_STORE);
-      const request = store.get(videoId); // Get by videoId key
+      const request = store.get(videoId);
 
-      request.onsuccess = () => resolve(request.result); // Returns timestamp or undefined
+      request.onsuccess = () => resolve(request.result);
       request.onerror = (event) => reject(event.target.error);
     } catch (error) {
       reject(error);
@@ -248,14 +238,13 @@ function getWatchTimestampDB(videoId) {
   });
 }
 
-function deleteWatchTimestampDB(videoId) {
+export function deleteWatchTimestamp(videoId) {
   return new Promise(async (resolve, reject) => {
     if (!videoId) return reject("Video ID is required");
     try {
-      const db = await initDB();
       const transaction = db.transaction([TIMESTAMPS_STORE], "readwrite");
       const store = transaction.objectStore(TIMESTAMPS_STORE);
-      const request = store.delete(videoId); // Delete by videoId key
+      const request = store.delete(videoId);
 
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(event.target.error);
@@ -264,14 +253,3 @@ function deleteWatchTimestampDB(videoId) {
     }
   });
 }
-
-window.IntentionTubeDB = {
-  saveAttempt,
-  getAllAttempts,
-  getAttemptStats,
-  clearAllAttempts,
-  updateAttemptOutcome,
-  saveWatchTimestampDB,
-  getWatchTimestampDB,
-  deleteWatchTimestampDB,
-};

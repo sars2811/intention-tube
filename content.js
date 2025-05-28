@@ -5,9 +5,21 @@ window.intentionTube = window.intentionTube || {
   settings: {
     blockingDuration: 5,
     isEnabled: true,
-    watchTimeLimit: 2, // Default watch time limit in hours
+    watchTimeLimit: 2,
   },
 };
+
+async function getMessageResponseFromBackground(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(response);
+      }
+    });
+  });
+}
 
 async function createBlockerOverlay() {
   if (document.getElementById("intention-tube-overlay")) {
@@ -19,16 +31,18 @@ async function createBlockerOverlay() {
 
   if (videoId) {
     try {
-      attemptId = await window.IntentionTubeDB.saveAttempt(
-        videoId,
-        "pending",
-        null,
-        document.title
-      );
-      console.log("Pending attempt saved with ID:", attemptId);
+      attemptId = await getMessageResponseFromBackground({
+        action: "saveAttempt",
+        payload: {
+          videoId,
+          outcome: "cancelled",
+          title: document.title,
+        },
+      });
     } catch (error) {
       console.error("Error saving pending attempt:", error);
-      // Proceed without an attemptId? Or show error?
+      resumeVideo();
+      return;
     }
   }
 
@@ -114,7 +128,7 @@ async function createBlockerOverlay() {
     watchButton.addEventListener("click", async () => {
       if (!attemptId) {
         console.error("Cannot update attempt: No attempt ID available.");
-        // Maybe just proceed with unblocking?
+        // just proceed with unblocking
         removeOverlay();
         resumeVideo();
         return;
@@ -123,12 +137,14 @@ async function createBlockerOverlay() {
       const reason = reasonInput.value.trim();
       if (reason) {
         try {
-          // Update attempt: attemptId, outcome='watched', reason
-          await window.IntentionTubeDB.updateAttemptOutcome(
-            attemptId,
-            "watched",
-            reason
-          );
+          await chrome.runtime.sendMessage({
+            action: "updateAttemptOutcome",
+            payload: {
+              attemptId,
+              reason,
+              outcome: "watched",
+            },
+          });
           if (videoId) {
             saveWatchTimestamp(videoId);
           }
@@ -136,8 +152,6 @@ async function createBlockerOverlay() {
           resumeVideo();
         } catch (error) {
           console.error("Error saving watched attempt:", error);
-          // Decide if we should still proceed?
-          alert("Error saving your reason. Please try again."); // Inform user
         }
       } else {
         alert("Please enter a reason for watching this video.");
@@ -145,24 +159,6 @@ async function createBlockerOverlay() {
     });
 
     cancelButton.addEventListener("click", async () => {
-      if (!attemptId) {
-        console.error("Cannot update attempt: No attempt ID available.");
-        // Proceed with closing tab anyway?
-        chrome.runtime.sendMessage({ action: "closeTab" });
-        return;
-      }
-
-      try {
-        await window.IntentionTubeDB.updateAttemptOutcome(
-          attemptId,
-          "cancelled",
-          null
-        );
-        console.log("Cancelled attempt updated for ID:", attemptId);
-      } catch (error) {
-        console.error("Error saving cancelled attempt:", error);
-        // Don't close tab if saving failed? Or proceed anyway?
-      }
       chrome.runtime.sendMessage({ action: "closeTab" });
     });
   } catch (error) {
@@ -189,7 +185,13 @@ function getVideoIdFromUrl(url) {
 async function saveWatchTimestamp(videoId) {
   if (!videoId) return;
   try {
-    await window.IntentionTubeDB.saveWatchTimestampDB(videoId, Date.now());
+    await chrome.runtime.sendMessage({
+      action: "saveWatchTimestamp",
+      payload: {
+        videoId,
+        timestamp: Date.now(),
+      },
+    });
   } catch (error) {
     console.error(
       `Error saving timestamp for video ${videoId} to IndexedDB:`,
@@ -201,7 +203,10 @@ async function saveWatchTimestamp(videoId) {
 async function hasWatchTimeExpired(videoId) {
   if (!videoId) return true;
 
-  const timestamp = await window.IntentionTubeDB.getWatchTimestampDB(videoId);
+  const timestamp = await getMessageResponseFromBackground({
+    action: "getWatchTimestamp",
+    payload: videoId,
+  });
 
   if (!timestamp) {
     return true;
@@ -212,14 +217,16 @@ async function hasWatchTimeExpired(videoId) {
   const expiryTime = timestamp + watchTimeLimitMillis;
 
   if (Date.now() >= expiryTime) {
-    await window.IntentionTubeDB.deleteWatchTimestampDB(videoId);
+    await chrome.runtime.sendMessage({
+      action: "deleteWatchTimestamp",
+      payload: videoId,
+    });
     return true;
   } else {
     return false;
   }
 }
 
-// Remove the blocker overlay
 function removeOverlay() {
   const overlay = document.getElementById("intention-tube-overlay");
   if (overlay) {
@@ -243,7 +250,6 @@ function removeOverlay() {
   window.intentionTube.videoBlocked = false;
 }
 
-// Pause the YouTube video
 function pauseVideo() {
   const videoElements = document.querySelectorAll("video");
   videoElements.forEach((video) => {
@@ -300,7 +306,6 @@ function pauseVideo() {
   }, 500);
 }
 
-// Resume the YouTube video
 function resumeVideo() {
   if (window.pauseCheckInterval) {
     clearInterval(window.pauseCheckInterval);
@@ -340,7 +345,7 @@ function resumeVideo() {
         } else {
           console.log("Video correctly unmuted via property setting.");
         }
-      }, 100); // 100ms delay
+      }, 100);
     }
   });
 
@@ -363,10 +368,8 @@ function resumeVideo() {
   }
 }
 
-// Initialize the blocker
 async function initBlocker() {
   if (!window.intentionTube.settings.isEnabled) {
-    console.log("Intention Tube is disabled. Skipping blocker.");
     return;
   }
 
@@ -390,13 +393,10 @@ async function initBlocker() {
 // --- Main Initialization ---
 (async () => {
   try {
-    const loadedSettings = await window.IntentionTubeSettings.loadSettings();
+    const loadedSettings = await getMessageResponseFromBackground({
+      action: "getSettings",
+    });
     window.intentionTube.settings = loadedSettings;
-
-    console.log(
-      "Intention Tube settings loaded:",
-      window.intentionTube.settings
-    );
 
     initBlocker();
   } catch (error) {
