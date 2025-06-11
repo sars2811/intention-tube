@@ -45,6 +45,15 @@ async function createBlockerOverlay() {
       return;
     }
   }
+  // Get dark mode setting
+  const settings = await getMessageResponseFromBackground({
+    action: "getSettings",
+  });
+
+  // Apply dark mode to the document body
+  if (settings.darkMode) {
+    document.body.classList.add("dark-mode");
+  }
 
   // First, add a style to prevent scrolling on the body
   const bodyStyle = document.createElement("style");
@@ -59,7 +68,6 @@ async function createBlockerOverlay() {
   cssLink.type = "text/css";
   cssLink.href = chrome.runtime.getURL("overlay.css");
   document.head.appendChild(cssLink);
-
   // Create the main overlay div (for background dimming and positioning)
   const overlay = document.createElement("div");
   overlay.id = "intention-tube-overlay";
@@ -69,7 +77,6 @@ async function createBlockerOverlay() {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.9);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -232,6 +239,9 @@ function removeOverlay() {
   if (overlay) {
     overlay.remove();
   }
+
+  // Remove dark mode class from body
+  document.body.classList.remove("dark-mode");
 
   const bodyStyle = document.getElementById("intention-tube-body-style");
   if (bodyStyle) {

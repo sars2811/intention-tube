@@ -27,6 +27,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     action: "getSettings",
   });
 
+  // Apply dark mode if enabled
+  if (settings.darkMode) {
+    document.body.classList.add("dark-mode");
+  }
+
   updateStatusUI(settings.isEnabled);
   watchTimeLimitInput.value = settings.watchTimeLimit;
   watchTimeLimitValue.textContent = `Current: ${settings.watchTimeLimit} hours`;
